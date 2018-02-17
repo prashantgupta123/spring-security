@@ -1,13 +1,18 @@
 package com.springmvc.controller;
 
+import com.springmvc.config.SpringSecurityService;
+import com.springmvc.entity.Privilege;
 import com.springmvc.entity.Role;
 import com.springmvc.entity.User;
 import com.springmvc.entity.VerificationToken;
 import com.springmvc.enums.UserRoleEnum;
+import com.springmvc.repositories.PrivilegeRepository;
 import com.springmvc.repositories.RoleRepository;
 import com.springmvc.repositories.UserRepository;
 import com.springmvc.repositories.VerificationTokenRepository;
+import com.springmvc.service.ActiveUserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +31,12 @@ public class HomeController {
     private VerificationTokenRepository verificationTokenRepository;
     @Autowired
     private RoleRepository roleRepository;
+    @Autowired
+    private PrivilegeRepository privilegeRepository;
+    @Autowired
+    private SpringSecurityService springSecurityService;
+    @Autowired
+    private ActiveUserService activeUserService;
 
     @RequestMapping(value = "/")
     public String home() {
@@ -103,6 +114,33 @@ public class HomeController {
         }
     }
 
+    @RequestMapping("/register/privilege")
+    @ResponseBody
+    public String registerPrivilege() {
+        if (privilegeRepository.count() == 0) {
+
+            Privilege readPrivilege = new Privilege();
+            readPrivilege.setName("ROLE_READ");
+            privilegeRepository.save(readPrivilege);
+
+            Privilege writePrivilege = new Privilege();
+            writePrivilege.setName("ROLE_WRITE");
+            privilegeRepository.save(writePrivilege);
+
+            Privilege updatePrivilege = new Privilege();
+            updatePrivilege.setName("ROLE_UPDATE");
+            privilegeRepository.save(updatePrivilege);
+
+            Privilege deletePrivilege = new Privilege();
+            deletePrivilege.setName("ROLE_UPDATE");
+            privilegeRepository.save(deletePrivilege);
+
+            return "Privileges Registered Successfully";
+        } else {
+            return "Privileges has been Registered Already";
+        }
+    }
+
     @RequestMapping("/register/verifyToken")
     @ResponseBody
     public String verifyUserToken(String token) {
@@ -111,5 +149,24 @@ public class HomeController {
         user.setEnabled(true);
         userRepository.save(user);
         return "User verify successfully";
+    }
+
+    @RequestMapping(value = "/user/current")
+    @ResponseBody
+    public String userName() {
+        UserDetails userDetails = springSecurityService.getCurrentUser();
+        return "Hello " + userDetails.getUsername();
+    }
+
+    @RequestMapping(value = "/user/authority")
+    @ResponseBody
+    public String userAuthority() {
+        return springSecurityService.getUserAuthority();
+    }
+
+    @RequestMapping("/active/users")
+    @ResponseBody
+    public String activeUsers() {
+        return activeUserService.getAllActiveUsers().toString();
     }
 }

@@ -1,16 +1,25 @@
 package com.springmvc.config;
 
+import com.springmvc.filter.CustomFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.access.intercept.RunAsImplAuthenticationProvider;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
 import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
+import org.springframework.security.web.authentication.switchuser.SwitchUserFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.sql.DataSource;
@@ -31,10 +40,43 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
     @Autowired
     private DataSource dataSource;
 
-    @Override
+    @Autowired
+    private CustomFilter customFilter;
+
+    @Autowired
+    private CustomAuthenticationProvider customAuthenticationProvider;
+
+    @Autowired
+    public void configureGlobal(AuthenticationManagerBuilder managerBuilder) throws Exception {
+//        managerBuilder.authenticationProvider(customAuthenticationProvider);
+        managerBuilder.authenticationProvider(runAsAuthenticationProvider());
+        managerBuilder.authenticationProvider(daoAuthenticationProvider());
+    }
+
+    @Bean
+    public AuthenticationProvider runAsAuthenticationProvider() {
+        RunAsImplAuthenticationProvider runAsImplAuthenticationProvider = new RunAsImplAuthenticationProvider();
+        runAsImplAuthenticationProvider.setKey("MyRunAsKey");
+        return runAsImplAuthenticationProvider;
+    }
+
+    @Bean
+    public AuthenticationProvider daoAuthenticationProvider() {
+        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
+        daoAuthenticationProvider.setUserDetailsService(userDetailsService);
+        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
+        return daoAuthenticationProvider;
+    }
+
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    /*@Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
         auth.userDetailsService(userDetailsService).passwordEncoder(new BCryptPasswordEncoder());
-    }
+    }*/
 
     /*@Autowired
     public void configureGlobal(AuthenticationManagerBuilder managerBuilder) throws Exception {
@@ -58,9 +100,25 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
         return jdbcTokenRepository;
     }
 
+    @Bean
+    public SwitchUserFilter switchUserFilter() {
+        SwitchUserFilter switchUserFilter = new SwitchUserFilter();
+        switchUserFilter.setUserDetailsService(userDetailsService);
+        switchUserFilter.setSwitchUserUrl("/switch/user");
+        switchUserFilter.setTargetUrl("/current/user");
+        return switchUserFilter;
+    }
+
+    @Bean
+    SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
+    }
+
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
+                .addFilterBefore(customFilter, AnonymousAuthenticationFilter.class)
+                .addFilter(switchUserFilter())
                 .csrf()
                 .disable()
                 .authorizeRequests()
@@ -82,14 +140,17 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
                 .permitAll()
                 .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET"))
 
-                .and()
+                /*.and()
                 .rememberMe()
                 .tokenValiditySeconds(3600)
                 .rememberMeCookieName("rememberMeCookie")
                 .rememberMeParameter("rememberMe")
-                .tokenRepository(persistentTokenRepository())
+                .tokenRepository(persistentTokenRepository())*/
 
                 .and()
-                .exceptionHandling().accessDeniedPage("/403");
+                .exceptionHandling().accessDeniedPage("/403")
+
+                .and().sessionManagement().maximumSessions(1).sessionRegistry(sessionRegistry());
+
     }
 }

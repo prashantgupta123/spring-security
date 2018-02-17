@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @Transactional(readOnly = true)
@@ -38,10 +37,15 @@ public class CustomUserDetailsService implements UserDetailsService {
         /*authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
         authorities.add(new SimpleGrantedAuthority("ROLE_USER"));*/
 
-        Set<Role> roles = user.getRoles();
-        for (Role role : roles) {
+        for (Role role : user.getRoles()) {
             authorities.add(new SimpleGrantedAuthority(role.getAuthority()));
         }
+
+        /*for (Role role : user.getRoles()) {
+            for (Privilege privilege : role.getPrivileges()) {
+                authorities.add(new SimpleGrantedAuthority(privilege.getName()));
+            }
+        }*/
 
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
