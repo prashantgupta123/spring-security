@@ -14,6 +14,14 @@ public class VerificationToken {
     @OneToOne
     private User user;
 
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
     public String getToken() {
         return token;
     }
